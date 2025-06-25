@@ -45,6 +45,41 @@ def load_data():
 # Carregar dados
 df = load_data()
 
+# aqui ta o sidebar (aquela coluna lateral)
+with st.sidebar:
+        st.title("Dashboard Netflix")
+        st.write("Análise de dados dos títulos disponíveis na Netflix")
+        st.image("https://upload.wikimedia.org/wikipedia/commons/6/69/Netflix_logo.svg", width=200)
+
+        tipo = st.radio("Selecione o tipo de título:", options=["Filme", "Série"], index=0)
+        paises = st.multiselect(
+            "Selecione os países:",
+            options=pd.read_csv("netflix_titles.csv")['country'].dropna().unique().tolist(),
+            default=["United States", "Brazil", "India"],
+            help="Selecione um ou mais países para filtrar os dados"
+        )
+        anos = st.slider(
+            "Selecione o intervalo de anos:",
+            min_value=1950,
+            max_value=2021,
+            value=(2000, 2021),
+            step=1,
+            help="Selecione o intervalo de anos para filtrar os dados"
+        )
+        st.write("### Sobre o Dashboard")
+        st.write('Criado com o objetivo de análise sobre popularidade e tendências dos títulos disponíveis na Netflix.')
+
+        st.write("### Sobre os Dados") 
+        st.write("Os dados foram extraídos de um dataset público do Kaggle, contendo informações sobre títulos disponíveis na Netflix, incluindo tipo, país, ano de lançamento e gênero.")
+"""        
+df_filtrado = df[df['type'] == tipo]
+if paises:
+    df_filtrado = df_filtrado[df_filtrado['country'].apply(lambda x: any(pais in x for pais in paises))] 
+df_filtrado = df_filtrado[
+    (df_filtrado['year_added'] >= anos[0]) & 
+    (df_filtrado['year_added'] <= anos[1])
+    ]
+"""
 # Título
 st.title("📊 Análise dos Dados Netflix")
 st.write(f"✅ Dados carregados com sucesso!")
