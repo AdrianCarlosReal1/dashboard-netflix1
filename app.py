@@ -83,7 +83,6 @@ if paises:
     df_filtrado = df_filtrado[df_filtrado['country'].isin(paises)]
 
 
-
 # ========== VISUALIZAÇÃO PRINCIPAL ========== #
 
 st.title("📊 Análise dos Dados Netflix")
@@ -94,14 +93,18 @@ st.markdown("### 🏆 Destaques da Netflix")
 
 col1, col2, col3 = st.columns(3)
 col4, col5, col6 = st.columns(3)
-
 # Título mais antigo
 titulo_mais_antigo = df.loc[df['release_year'] == df['release_year'].min(), 'title'].iloc[0]
 
 # Título mais recente
 titulo_mais_novo = df.loc[df['release_year'] == df['release_year'].max(), 'title'].iloc[0]
 
-# Médias
+# Criar nova coluna com minutagem para filmes
+df['duracao_minutos'] = df['duration'].apply(
+    lambda x: int(x.replace(' min', '')) if isinstance(x, str) and 'min' in x else None
+)
+
+# Média de duração dos filmes
 media_filme = df[df['type'] == 'Movie']['duracao_minutos'].mean()
 
 # Totais
@@ -109,18 +112,19 @@ total_titulos = df.shape[0]
 total_filmes = df[df['type'] == 'Movie'].shape[0]
 total_series = df[df['type'] == 'TV Show'].shape[0]
 
-# Título com mais países envolvidos
-mais_colabs = df.loc[df['country'].apply(lambda x: len(x) if isinstance(x, list) else 0).idxmax()]
-
 # Gêneros por título (média)
 media_generos = df['listed_in'].apply(lambda x: len(x) if isinstance(x, list) else 0).mean()
 
+# Quantidade de países únicos
+qtd_paises = df['country'].explode().nunique()
+
+# Métricas visuais
 col1.metric("🎬 Título Mais Antigo", titulo_mais_antigo, f"Ano: {int(df['release_year'].min())}")
 col2.metric("🆕 Título Mais Recente", titulo_mais_novo, f"Ano: {int(df['release_year'].max())}")
 col3.metric("📦 Total de Títulos", f"{total_titulos:,}", f"{total_filmes} filmes / {total_series} séries")
 col4.metric("⏱️ Duração Média (Filmes)", f"{media_filme:.1f} min")
 col5.metric("🍿 Gêneros por Título (média)", f"{media_generos:.1f}")
-col6.metric("🌐 Título + Colaborativo", mais_colabs['title'], f"{len(mais_colabs['country'])} países")
+col6.metric("🌍 Países Representados", f"{qtd_paises} países")
 
 coluna_selecionada = st.selectbox(
     "📌 Selecione uma coluna categórica para análise:",
@@ -146,7 +150,6 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
 # ========== ABAS DE ANÁLISE ========== #
 abas = st.tabs([
     "🎞️ Tipos de Título",
@@ -159,7 +162,6 @@ abas = st.tabs([
     "🧩 Proporção de Gêneros - Treemap",
     "🌐 Tipos de Título por País (Top 10 países)"
 ])
-
 
 with abas[0]:
     st.subheader("🎞️ Proporção de Filmes vs Séries")
