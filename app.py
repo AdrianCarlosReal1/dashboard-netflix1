@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go 
-from sklearn.linear_model import LinearRegression 
+import plotly.graph_objects as go
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
 from sklearn.metrics import r2_score, mean_absolute_error
-import numpy as np 
-
+import numpy as np
 # ========== CONFIGURAÇÃO DA PÁGINA ========== #
 st.set_page_config(page_title="Dashboard Netflix", layout="wide")
 
@@ -47,6 +48,7 @@ def load_data():
 
 # ========== CARREGAMENTO DOS DADOS ========== #
 df = load_data()
+df_treino = df[~df['year_added'].isin([2019, 2021])].copy()
 
 # ========== SIDEBAR ========== #
 with st.sidebar:
@@ -331,89 +333,110 @@ with abas[8]:
     fig.update_layout(paper_bgcolor='#1e1e1e', plot_bgcolor='#2c2c2c', font_color='white')
     st.plotly_chart(fig, use_container_width=True)
 # ===================================================================
-# SEÇÃO 2: PREVISÃO COM IA (TÍTULOS PERSONALIZADOS)
+# SEÇÃO 2: PREVISÃO COM IA (VERSÃO FINAL COM REGRESSÃO POLINOMIAL)
 # ===================================================================
 st.write("---")
 st.header("🤖 Análise Preditiva de Conteúdo por País (IA)")
 st.markdown("""
-Esta seção utiliza modelos de **Inteligência Artificial** para estimar a tendência de adição de novos **Filmes** e **Séries** nos principais mercados da Netflix,
-com base nos países com maior volume de produção de filmes.
+Esta seção utiliza **Inteligência Artificial** para prever a tendência de novas adições de conteúdo. 
+Você pode controlar a complexidade do modelo de previsão usando o slider de "Grau Polinomial".
+**Nota Metodológica:** Os modelos são treinados ignorando os dados dos anos de 2019 e 2021, considerados atípicos.
 """)
 
-# --- Preparar dados para os modelos ---
+# --- Preparar dados ---
 top_countries = [
-    'United States', 'India', 'United Kingdom', 'Canada', 'France', 'Spain',
-    'Egypt', 'Mexico', 'Turkey', 'Japan', 'Australia', 'China', 'Germany',
-    'South Korea', 'Hong Kong', 'Indonesia', 'Philippines', 'Nigeria'
+    'United States', 'India', 'United Kingdom', 'Canada', 'France', 'Spain', 'Egypt', 'Mexico', 
+    'Turkey', 'Japan', 'Australia', 'China', 'Germany', 'South Korea', 'Hong Kong', 
+    'Indonesia', 'Philippines', 'Nigeria'
 ]
-df_top_countries = df[df['country'].isin(top_countries)].copy()
-
+df_top_countries = df_treino[df_treino['country'].isin(top_countries)].copy()
 df_top_countries['year_added'] = df_top_countries['year_added'].astype(int)
 country_time_series = df_top_countries.groupby(['year_added', 'country', 'type']).size().reset_index(name='title_count')
 
-# --- Treinar modelos para cada país e tipo ---
-country_models = {country: {} for country in top_countries}
-for country in top_countries:
-    for content_type in ['Movie', 'TV Show']:
-        type_data = country_time_series[(country_time_series['country'] == country) & (country_time_series['type'] == content_type)]
-        if len(type_data) > 1:
-            X_train = type_data[['year_added']]
-            y_train = type_data['title_count']
-            model = LinearRegression()
-            model.fit(X_train, y_train)
-            country_models[country][content_type] = model
+# --- Interface ---
+trainable_countries = [country for country in top_countries if len(country_time_series[country_time_series['country'] == country]) > 3]
+selected_country = st.selectbox("Selecione um País para Análise:", options=trainable_countries)
 
-# --- Interface do Usuário ---
-trainable_countries = [country for country in top_countries if country_models.get(country)]
-selected_country = st.selectbox("Selecione um País para Análise:", options=trainable_countries, key="selectbox_ia_final")
+degree = st.slider("Ajuste a Complexidade do Modelo (Grau Polinomial):", 1, 3, 2, key="degree_slider")
+st.caption(f"Grau 1: Modelo Linear (reta). Graus 2 e 3: Modelos Polinomiais (curvas).")
 
 if selected_country:
-    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2021, key=f"slider_final_{selected_country}")
+    # --- Treinar e Avaliar Modelos Dinamicamente ---
+    models = {}
+    metrics = {}
+    for content_type in ['Movie', 'TV Show']:
+        type_data = country_time_series[(country_time_series['country'] == selected_country) & (country_time_series['type'] == content_type)]
+        if len(type_data) > degree:
+            X_train = type_data[['year_added']]
+            y_train = type_data['title_count']
+            model = make_pipeline(PolynomialFeatures(degree, include_bias=False), LinearRegression())
+            model.fit(X_train, y_train)
+            models[content_type] = model
+            y_pred_train = model.predict(X_train)
+            r2 = r2_score(y_train, y_pred_train)
+            mae = mean_absolute_error(y_train, y_pred_train)
+            metrics[content_type] = {'R2': r2, 'MAE': mae}
 
-    # --- Fazer previsões para Filmes e Séries ---
-    model_movie = country_models[selected_country].get('Movie')
-    model_show = country_models[selected_country].get('TV Show')
+    # --- Mostrar Métricas ---
+    st.write("---")
+    st.subheader(f"Avaliação do Modelo (Grau {degree}) para {selected_country}")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("##### Modelo de Filmes 🎞️")
+        metrics_movie = metrics.get('Movie')
+        if metrics_movie:
+            st.metric(label="Qualidade (R²)", value=f"{metrics_movie['R2']:.1%}")
+            st.metric(label="Erro Médio (MAE)", value=f"{metrics_movie['MAE']:.1f} títulos/ano")
+        else:
+            st.info("Não há dados suficientes para este modelo.")
+    with col2:
+        st.markdown("##### Modelo de Séries 📺")
+        metrics_show = metrics.get('TV Show')
+        if metrics_show:
+            st.metric(label="Qualidade (R²)", value=f"{metrics_show['R2']:.1%}")
+            st.metric(label="Erro Médio (MAE)", value=f"{metrics_show['MAE']:.1f} títulos/ano")
+        else:
+            st.info("Não há dados suficientes para este modelo.")
+
+    # --- Previsão e Gráficos ---
+    st.write("---")
+    st.subheader(f"Previsão de Novas Adições para {selected_country}")
+    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2024, key=f"slider_final_poly_{selected_country}")
+    
+    model_movie = models.get('Movie')
+    model_show = models.get('TV Show')
     pred_movie, pred_show = 0, 0
     if model_movie:
         pred_movie = max(0, int(model_movie.predict(pd.DataFrame([[future_year]], columns=['year_added']))[0]))
     if model_show:
         pred_show = max(0, int(model_show.predict(pd.DataFrame([[future_year]], columns=['year_added']))[0]))
 
+    col1_pred, col2_pred = st.columns(2)
+    col1_pred.metric(label="Novos Filmes Previstos", value=pred_movie)
+    col2_pred.metric(label="Novas Séries Previstas", value=pred_show)
+    
     st.write("---")
-    # TÍTULO ALTERADO AQUI
-    st.subheader(f"Previsão de Adições para {future_year} em {selected_country}")
-    col1, col2 = st.columns(2)
-    col1.metric(label="Novos Filmes 🎞️", value=pred_movie)
-    col2.metric(label="Novas Séries 📺", value=pred_show)
-
-    # --- Gráfico de Linha Combinado ---
-    st.write("---")
-    # TÍTULO ALTERADO AQUI
-    st.subheader(f"Evolução e Tendência de Conteúdo para {selected_country}")
+    st.subheader(f"Evolução e Tendência de Conteúdo (Modelo Grau {degree})")
     fig = go.Figure()
     if model_movie:
         history_movie = country_time_series[(country_time_series['country'] == selected_country) & (country_time_series['type'] == 'Movie')]
         fig.add_trace(go.Scatter(x=history_movie['year_added'], y=history_movie['title_count'], mode='lines+markers', name='Filmes (Histórico)', line=dict(color='royalblue')))
-        trend_x_m_df = pd.DataFrame(np.arange(history_movie['year_added'].min(), future_year + 1), columns=['year_added'])
-        trend_y_m = model_movie.predict(trend_x_m_df)
-        fig.add_trace(go.Scatter(x=trend_x_m_df['year_added'], y=[max(0, val) for val in trend_y_m], mode='lines', name='Filmes (Previsão)', line=dict(dash='dash', color='cyan')))
+        trend_x_range = np.arange(history_movie['year_added'].min(), future_year + 1).reshape(-1, 1)
+        trend_y_m = model_movie.predict(trend_x_range)
+        fig.add_trace(go.Scatter(x=trend_x_range.flatten(), y=[max(0, val) for val in trend_y_m], mode='lines', name='Filmes (Previsão)', line=dict(dash='dash', color='cyan')))
     if model_show:
         history_show = country_time_series[(country_time_series['country'] == selected_country) & (country_time_series['type'] == 'TV Show')]
         fig.add_trace(go.Scatter(x=history_show['year_added'], y=history_show['title_count'], mode='lines+markers', name='Séries (Histórico)', line=dict(color='red')))
-        trend_x_s_df = pd.DataFrame(np.arange(history_show['year_added'].min(), future_year + 1), columns=['year_added'])
-        trend_y_s = model_show.predict(trend_x_s_df)
-        fig.add_trace(go.Scatter(x=trend_x_s_df['year_added'], y=[max(0, val) for val in trend_y_s], mode='lines', name='Séries (Previsão)', line=dict(dash='dash', color='tomato')))
-    # TÍTULO DO GRÁFICO ALTERADO AQUI
+        trend_x_range_s = np.arange(history_show['year_added'].min(), future_year + 1).reshape(-1, 1)
+        trend_y_s = model_show.predict(trend_x_range_s)
+        fig.add_trace(go.Scatter(x=trend_x_range_s.flatten(), y=[max(0, val) for val in trend_y_s], mode='lines', name='Séries (Previsão)', line=dict(dash='dash', color='tomato')))
     fig.update_layout(title=f"Histórico vs. Previsão para {selected_country}", xaxis_title='Ano', yaxis_title='Quantidade de Títulos Adicionados', paper_bgcolor='#0E1117', plot_bgcolor='#0E1117', font_color='white', legend_title_text='Legenda')
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Gráfico de Pizza Dinâmico ---
     st.write("---")
-    # TÍTULO ALTERADO AQUI
     st.subheader(f"Proporção Prevista para {future_year} em {selected_country}")
     labels = ['Filmes', 'Séries']
     values = [pred_movie, pred_show]
-    # TÍTULO DO GRÁFICO ALTERADO AQUI
     pie_fig = px.pie(names=labels, values=values, title=f'Proporção de Conteúdo para {selected_country} em {future_year}', hole=0.3)
     total_preds = pred_movie + pred_show
     if total_preds == 0:
