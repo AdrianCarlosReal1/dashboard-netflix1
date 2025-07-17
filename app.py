@@ -341,7 +341,7 @@ st.header("🤖 Análise Preditiva de Conteúdo por País")
 st.markdown("""
 Esta seção utiliza **Inteligência Artificial** para prever a tendência de novas adições de conteúdo. 
 Você pode controlar a complexidade do modelo de previsão usando o slider de "Grau Polinomial".
-"""
+""")
 # --- Preparar dados ---
 top_countries = [
     'United States', 'India', 'United Kingdom', 'Canada', 'France', 'Spain', 'Egypt', 'Mexico', 
