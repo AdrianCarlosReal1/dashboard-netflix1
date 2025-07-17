@@ -402,7 +402,7 @@ if selected_country:
     # --- Previsão e Gráficos ---
     st.write("---")
     st.subheader(f"Previsão de Novas Adições para {selected_country}")
-    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2024, key=f"slider_final_poly_{selected_country}")
+    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2022, key=f"slider_final_poly_{selected_country}")
     
     model_movie = models.get('Movie')
     model_show = models.get('TV Show')
