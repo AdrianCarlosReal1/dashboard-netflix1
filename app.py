@@ -49,7 +49,7 @@ def load_data():
 
 # ========== CARREGAMENTO DOS DADOS ========== #
 df = load_data()
-df_treino = df[~df['year_added'].isin([2019, 2021])].copy()
+df_treino = df[~df['year_added'].isin([2019])].copy()
 
 # ========== SIDEBAR ========== #
 with st.sidebar:
