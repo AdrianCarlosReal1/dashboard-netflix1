@@ -368,7 +368,7 @@ trainable_countries = [country for country in top_countries if country_models.ge
 selected_country = st.selectbox("Selecione um País para Análise:", options=trainable_countries, key="selectbox_ia_final")
 
 if selected_country:
-    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2024, key=f"slider_final_{selected_country}")
+    future_year = st.slider("Selecione o Ano para Previsão:", 2022, 2030, 2021, key=f"slider_final_{selected_country}")
 
     # --- Fazer previsões para Filmes e Séries ---
     model_movie = country_models[selected_country].get('Movie')
