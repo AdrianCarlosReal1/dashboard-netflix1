@@ -7,6 +7,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import r2_score, mean_absolute_error
 import numpy as np
+
 # ========== CONFIGURAÇÃO DA PÁGINA ========== #
 st.set_page_config(page_title="Dashboard Netflix", layout="wide")
 
