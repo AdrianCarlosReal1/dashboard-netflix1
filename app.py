@@ -337,12 +337,10 @@ with abas[8]:
 # SEÇÃO 2: PREVISÃO COM IA (VERSÃO FINAL COM REGRESSÃO POLINOMIAL)
 # ===================================================================
 st.write("---")
-st.header("🤖 Análise Preditiva de Conteúdo por País (IA)")
+st.header("🤖 Análise Preditiva de Conteúdo por País")
 st.markdown("""
 Esta seção utiliza **Inteligência Artificial** para prever a tendência de novas adições de conteúdo. 
 Você pode controlar a complexidade do modelo de previsão usando o slider de "Grau Polinomial".
-**Nota Metodológica:** Os modelos são treinados ignorando os dados dos anos de 2019 e 2021, considerados atípicos.
-""")
 
 # --- Preparar dados ---
 top_countries = [
